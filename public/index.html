@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Compartilhar tela</title>
+<style>
+  :root { --bg:#14171c; --painel:#1d222a; --texto:#e8ecf1; --suave:#8b95a5; --acento:#4cc2ff; --erro:#ff6b6b; }
+  * { box-sizing:border-box; }
+  body { margin:0; min-height:100vh; background:var(--bg); color:var(--texto);
+         font-family:system-ui,-apple-system,"Segoe UI",sans-serif; display:flex; flex-direction:column; align-items:center; padding:24px; }
+  h1 { font-size:1.5rem; margin:8px 0 4px; }
+  p.sub { color:var(--suave); margin:0 0 24px; }
+  .controles { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:16px; }
+  input { background:var(--painel); border:1px solid #2c3440; color:var(--texto); padding:10px 12px; border-radius:8px; font-size:1rem; width:200px; }
+  button { background:var(--acento); color:#04202e; border:0; padding:10px 16px; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; }
+  button.sec { background:var(--painel); color:var(--texto); border:1px solid #2c3440; }
+  button:focus-visible, input:focus-visible { outline:2px solid var(--acento); outline-offset:2px; }
+  #status { color:var(--suave); min-height:1.4em; margin-bottom:12px; }
+  #status.erro { color:var(--erro); }
+  video { width:100%; max-width:1100px; background:#000; border-radius:12px; aspect-ratio:16/9; }
+</style>
+</head>
+<body>
+  <h1>Compartilhar tela</h1>
+  <p class="sub">Uma pessoa compartilha, a outra assiste, usando o mesmo código de sala.</p>
+
+  <div class="controles">
+    <input id="sala" placeholder="Código da sala" maxlength="32" aria-label="Código da sala">
+    <button id="btnCompartilhar">Compartilhar minha tela</button>
+    <button id="btnAssistir" class="sec">Assistir</button>
+    <button id="btnParar" class="sec" hidden>Parar</button>
+  </div>
+  <div id="status" role="status"></div>
+  <video id="video" autoplay playsinline controls muted></video>
+
+<script>
+const $ = (id) => document.getElementById(id);
+const status = (t, erro = false) => { $("status").textContent = t; $("status").className = erro ? "erro" : ""; };
+
+// STUN público do Google. Para redes mais restritas (NAT simétrico), adicione um servidor TURN aqui.
+const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
+
+let ws, pc, stream, papel;
+
+$("sala").value = location.hash.slice(1) || Math.random().toString(36).slice(2, 8);
+
+function conectar(sala) {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => ws.send(JSON.stringify({ type: "entrar", sala }));
+  ws.onmessage = (e) => tratar(JSON.parse(e.data));
+  ws.onclose = () => status("Conexão com o servidor encerrada.", true);
+}
+
+function novoPeer() {
+  pc = new RTCPeerConnection(ICE);
+  pc.onicecandidate = (e) => e.candidate && ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
+  pc.onconnectionstatechange = () => {
+    if (pc.connectionState === "connected") status("Conectado.");
+    if (pc.connectionState === "failed") status("Não foi possível conectar. Pode ser preciso um servidor TURN.", true);
+  };
+  return pc;
+}
+
+async function tratar(msg) {
+  if (msg.type === "chegou" && papel === "emissor") {
+    // alguém novo entrou: cria uma oferta com a tela
+    novoPeer();
+    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
+    await pc.setLocalDescription(await pc.createOffer());
+    ws.send(JSON.stringify({ type: "offer", sdp: pc.localDescription }));
+  }
+  if (msg.type === "offer" && papel === "espectador") {
+    novoPeer();
+    pc.ontrack = (e) => { $("video").srcObject = e.streams[0]; status("Assistindo."); };
+    await pc.setRemoteDescription(msg.sdp);
+    await pc.setLocalDescription(await pc.createAnswer());
+    ws.send(JSON.stringify({ type: "answer", sdp: pc.localDescription }));
+  }
+  if (msg.type === "answer" && pc) await pc.setRemoteDescription(msg.sdp);
+  if (msg.type === "ice" && pc) try { await pc.addIceCandidate(msg.candidate); } catch {}
+  if (msg.type === "saiu" && papel === "espectador") status("O emissor saiu da sala.", true);
+}
+
+function emSala(r) {
+  const sala = $("sala").value.trim();
+  if (!sala) return status("Digite um código de sala.", true), false;
+  papel = r;
+  location.hash = sala;
+  $("btnParar").hidden = false;
+  conectar(sala);
+  return true;
+}
+
+$("btnCompartilhar").onclick = async () => {
+  try {
+    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+  } catch { return status("Compartilhamento cancelado.", true); }
+  if (!emSala("emissor")) return;
+  $("video").srcObject = stream;
+  stream.getVideoTracks()[0].onended = parar;
+  status(`Sala "${$("sala").value}" aberta. Envie este link para quem vai assistir: ${location.href}`);
+};
+
+$("btnAssistir").onclick = () => {
+  if (emSala("espectador")) status("Aguardando o emissor…");
+};
+
+function parar() {
+  stream?.getTracks().forEach((t) => t.stop());
+  pc?.close(); ws?.close();
+  $("video").srcObject = null;
+  $("btnParar").hidden = true;
+  status("Encerrado.");
+}
+$("btnParar").onclick = parar;
+</script>
+</body>
+</html>

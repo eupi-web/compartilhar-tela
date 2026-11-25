@@ -5,116 +5,278 @@
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>Compartilhar tela</title>
 <style>
-  :root { --bg:#14171c; --painel:#1d222a; --texto:#e8ecf1; --suave:#8b95a5; --acento:#4cc2ff; --erro:#ff6b6b; }
+  :root {
+    --fundo:#1e1f22; --painel:#2b2d31; --tile:#2b2d31; --texto:#f2f3f5; --suave:#b5bac1;
+    --azul:#5865f2; --verde:#23a55a; --vermelho:#da373c;
+  }
   * { box-sizing:border-box; }
-  body { margin:0; min-height:100vh; background:var(--bg); color:var(--texto);
-         font-family:system-ui,-apple-system,"Segoe UI",sans-serif; display:flex; flex-direction:column; align-items:center; padding:24px; }
-  h1 { font-size:1.5rem; margin:8px 0 4px; }
-  p.sub { color:var(--suave); margin:0 0 24px; }
-  .controles { display:flex; gap:8px; flex-wrap:wrap; justify-content:center; margin-bottom:16px; }
-  input { background:var(--painel); border:1px solid #2c3440; color:var(--texto); padding:10px 12px; border-radius:8px; font-size:1rem; width:200px; }
-  button { background:var(--acento); color:#04202e; border:0; padding:10px 16px; border-radius:8px; font-size:1rem; font-weight:600; cursor:pointer; }
-  button.sec { background:var(--painel); color:var(--texto); border:1px solid #2c3440; }
-  button:focus-visible, input:focus-visible { outline:2px solid var(--acento); outline-offset:2px; }
-  #status { color:var(--suave); min-height:1.4em; margin-bottom:12px; }
-  #status.erro { color:var(--erro); }
-  video { width:100%; max-width:1100px; background:#000; border-radius:12px; aspect-ratio:16/9; }
+  html, body { height:100%; margin:0; }
+  body { background:var(--fundo); color:var(--texto); font-family:"gg sans","Segoe UI",system-ui,sans-serif; }
+  [hidden] { display:none !important; }
+  button, input { font:inherit; }
+  button:focus-visible, input:focus-visible { outline:2px solid #00a8fc; outline-offset:2px; }
+
+  /* ---------- tela de entrada ---------- */
+  #entrada { min-height:100%; display:flex; align-items:center; justify-content:center; padding:24px; }
+  .cartao { background:var(--painel); border-radius:12px; padding:32px; width:100%; max-width:420px; box-shadow:0 8px 24px rgba(0,0,0,.4); }
+  .cartao h1 { margin:0 0 4px; font-size:1.5rem; text-align:center; }
+  .cartao p { margin:0 0 24px; color:var(--suave); text-align:center; }
+  label { display:block; font-size:.75rem; font-weight:700; letter-spacing:.02em; text-transform:uppercase; color:var(--suave); margin:0 0 8px; }
+  input { width:100%; background:#1e1f22; border:0; color:var(--texto); padding:12px; border-radius:6px; font-size:1rem; margin-bottom:20px; }
+  .botao { border:0; border-radius:24px; padding:12px 20px; font-weight:600; cursor:pointer; color:#fff; background:var(--azul); }
+  .botao:hover { filter:brightness(1.1); }
+  .botao.cheio { width:100%; border-radius:6px; }
+  #erro { color:#ff8a8d; text-align:center; min-height:1.3em; margin:12px 0 0; }
+
+  /* ---------- chamada ---------- */
+  #chamada { height:100%; display:flex; flex-direction:column; }
+  #topo { display:flex; justify-content:space-between; align-items:center; padding:12px 20px; font-size:.9rem; color:var(--suave); }
+  #topo strong { color:var(--texto); }
+  #grade { flex:1; min-height:0; overflow:auto; display:grid; gap:12px; padding:8px 20px 16px;
+           grid-template-columns:repeat(var(--cols,1), minmax(0,1fr)); align-content:center; }
+  .tile { position:relative; aspect-ratio:16/9; background:var(--tile); border-radius:10px; overflow:hidden; cursor:pointer;
+          display:flex; align-items:center; justify-content:center; border:2px solid transparent; }
+  .tile:hover { border-color:#4e5058; }
+  .tile.ao-vivo { background:#000; }
+  .tile video { position:absolute; inset:0; width:100%; height:100%; object-fit:contain; background:#000; display:none; }
+  .tile.ao-vivo video { display:block; }
+  .avatar { width:22%; max-width:96px; min-width:48px; aspect-ratio:1; border-radius:50%; display:flex; align-items:center;
+            justify-content:center; font-size:2rem; font-weight:700; color:#fff; }
+  .tile.ao-vivo .avatar { display:none; }
+  .nome { position:absolute; left:10px; bottom:10px; background:rgba(0,0,0,.65); padding:4px 10px; border-radius:6px; font-size:.85rem; max-width:80%;
+          white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .vivo { position:absolute; left:10px; top:10px; background:var(--vermelho); padding:2px 8px; border-radius:4px; font-size:.7rem; font-weight:700; display:none; }
+  .tile.ao-vivo .vivo { display:block; }
+
+  #barra { display:flex; justify-content:center; align-items:center; gap:12px; padding:14px; background:#111214; flex-wrap:wrap; }
+  .circ { border:0; border-radius:24px; padding:12px 20px; font-weight:600; color:#fff; cursor:pointer; background:#383a40; }
+  .circ:hover { filter:brightness(1.15); }
+  .circ.verde { background:var(--verde); }
+  .circ.vermelho { background:var(--vermelho); }
+  #dica { color:var(--suave); font-size:.8rem; text-align:center; padding-bottom:6px; }
+
+  @media (max-width:640px) { #grade { --cols:1 !important; } }
 </style>
 </head>
 <body>
-  <h1>Compartilhar tela</h1>
-  <p class="sub">Uma pessoa compartilha, a outra assiste, usando o mesmo código de sala.</p>
 
-  <div class="controles">
-    <input id="sala" placeholder="Código da sala" maxlength="32" aria-label="Código da sala">
-    <button id="btnCompartilhar">Compartilhar minha tela</button>
-    <button id="btnAssistir" class="sec">Assistir</button>
-    <button id="btnParar" class="sec" hidden>Parar</button>
+<!-- ENTRADA -->
+<section id="entrada">
+  <div class="cartao">
+    <h1>Compartilhar tela</h1>
+    <p>Entre numa sala e mostre sua tela para os amigos.</p>
+    <label for="nomeInput">Seu nome</label>
+    <input id="nomeInput" maxlength="24" placeholder="Como quer ser chamado" autocomplete="nickname">
+    <label for="salaInput">Código da sala</label>
+    <input id="salaInput" maxlength="32" placeholder="Ex.: amigos123" autocomplete="off">
+    <button id="btnEntrar" class="botao cheio">Entrar na sala</button>
+    <p id="erro" role="alert"></p>
   </div>
-  <div id="status" role="status"></div>
-  <video id="video" autoplay playsinline controls muted></video>
+</section>
+
+<!-- CHAMADA -->
+<section id="chamada" hidden>
+  <div id="topo"><span>Sala <strong id="salaNome"></strong></span><span id="contagem"></span></div>
+  <div id="grade"></div>
+  <div id="dica">Clique numa tela para ampliar</div>
+  <div id="barra">
+    <button id="btnTela" class="circ verde">Compartilhar tela</button>
+    <button id="btnConvite" class="circ">Copiar link do convite</button>
+    <button id="btnSair" class="circ vermelho">Sair</button>
+  </div>
+</section>
 
 <script>
 const $ = (id) => document.getElementById(id);
-const status = (t, erro = false) => { $("status").textContent = t; $("status").className = erro ? "erro" : ""; };
 
-// STUN público do Google. Para redes mais restritas (NAT simétrico), adicione um servidor TURN aqui.
+// STUN público. Para redes mais restritas, adicione um servidor TURN aqui.
 const ICE = { iceServers: [{ urls: "stun:stun.l.google.com:19302" }] };
 
-let ws, pc, stream, papel;
+let ws, meuId, telaStream = null, fila = Promise.resolve();
+const pares = new Map(); // id -> { nome, compartilhando, pc, stream, tile }
 
-$("sala").value = location.hash.slice(1) || Math.random().toString(36).slice(2, 8);
+/* ---------- utilidades ---------- */
+const cores = ["#5865f2", "#23a55a", "#f0b232", "#eb459e", "#ed4245", "#00a8fc", "#9b59b6"];
+const corDe = (id) => cores[[...id].reduce((a, c) => a + c.charCodeAt(0), 0) % cores.length];
+const enviar = (obj) => ws && ws.readyState === 1 && ws.send(JSON.stringify(obj));
 
-function conectar(sala) {
-  const proto = location.protocol === "https:" ? "wss" : "ws";
-  ws = new WebSocket(`${proto}://${location.host}`);
-  ws.onopen = () => ws.send(JSON.stringify({ type: "entrar", sala }));
-  ws.onmessage = (e) => tratar(JSON.parse(e.data));
-  ws.onclose = () => status("Conexão com o servidor encerrada.", true);
+try { $("nomeInput").value = localStorage.getItem("nome") || ""; } catch {}
+$("salaInput").value = decodeURIComponent(location.hash.slice(1)) || "";
+
+/* ---------- quadrados (tiles) ---------- */
+function criarTile(id, nome, ehEu) {
+  const t = document.createElement("div");
+  t.className = "tile";
+  t.innerHTML = `<video autoplay playsinline></video>
+    <div class="avatar"></div><div class="vivo">AO VIVO</div><div class="nome"></div>`;
+  t.querySelector(".avatar").textContent = (nome[0] || "?").toUpperCase();
+  t.querySelector(".avatar").style.background = corDe(id);
+  t.querySelector(".nome").textContent = ehEu ? `${nome} (você)` : nome;
+  if (ehEu) t.querySelector("video").muted = true; // evita eco do próprio áudio
+  t.onclick = () => document.fullscreenElement ? document.exitFullscreen() : t.requestFullscreen?.();
+  $("grade").appendChild(t);
+  ajustarGrade();
+  return t;
+}
+function marcarVivo(tile, vivo) { tile.classList.toggle("ao-vivo", !!vivo); }
+function ajustarGrade() {
+  const n = $("grade").children.length;
+  $("grade").style.setProperty("--cols", Math.min(n, Math.ceil(Math.sqrt(n))) || 1);
+  $("contagem").textContent = n === 1 ? "1 pessoa" : `${n} pessoas`;
 }
 
-function novoPeer() {
-  pc = new RTCPeerConnection(ICE);
-  pc.onicecandidate = (e) => e.candidate && ws.send(JSON.stringify({ type: "ice", candidate: e.candidate }));
+/* ---------- conexões entre pessoas ---------- */
+function novaPessoa(id, nome, compartilhando) {
+  const p = { nome, compartilhando: !!compartilhando, pc: null, stream: new MediaStream(), tile: criarTile(id, nome, false) };
+  marcarVivo(p.tile, p.compartilhando);
+  p.tile.querySelector("video").srcObject = p.stream;
+  pares.set(id, p);
+  return p;
+}
+
+function criarPeer(id, p) {
+  const pc = new RTCPeerConnection(ICE);
+  p.pc = pc;
+  pc.onicecandidate = (e) => e.candidate && enviar({ type: "ice", para: id, candidate: e.candidate });
+  pc.ontrack = (e) => {
+    p.stream.addTrack(e.track);
+    p.tile.querySelector("video").play().catch(() => {});
+  };
   pc.onconnectionstatechange = () => {
-    if (pc.connectionState === "connected") status("Conectado.");
-    if (pc.connectionState === "failed") status("Não foi possível conectar. Pode ser preciso um servidor TURN.", true);
+    if (pc.connectionState === "failed") console.warn("Falha ao conectar com", p.nome, "(pode precisar de TURN)");
   };
   return pc;
 }
 
+// coloca (ou tira) a tela atual em todas as conexões, sem renegociar
+function atualizarEnvio(pc) {
+  pc.getTransceivers().forEach((t) => {
+    const kind = t.receiver.track.kind;
+    const faixa = telaStream ? telaStream.getTracks().find((x) => x.kind === kind) || null : null;
+    t.direction = "sendrecv";
+    t.sender.replaceTrack(faixa).catch(() => {});
+  });
+}
+
+async function chamar(id) {
+  const p = pares.get(id);
+  const pc = criarPeer(id, p);
+  pc.addTransceiver("video", { direction: "sendrecv" });
+  pc.addTransceiver("audio", { direction: "sendrecv" });
+  atualizarEnvio(pc);
+  await pc.setLocalDescription(await pc.createOffer());
+  enviar({ type: "offer", para: id, sdp: pc.localDescription });
+}
+
+/* ---------- mensagens do servidor (uma de cada vez, em ordem) ---------- */
 async function tratar(msg) {
-  if (msg.type === "chegou" && papel === "emissor") {
-    // alguém novo entrou: cria uma oferta com a tela
-    novoPeer();
-    stream.getTracks().forEach((t) => pc.addTrack(t, stream));
-    await pc.setLocalDescription(await pc.createOffer());
-    ws.send(JSON.stringify({ type: "offer", sdp: pc.localDescription }));
+  if (msg.type === "bem-vindo") {
+    meuId = msg.id;
+    msg.pessoas.forEach((x) => novaPessoa(x.id, x.nome, x.compartilhando));
+    for (const x of msg.pessoas) await chamar(x.id); // quem chega liga para quem já estava
   }
-  if (msg.type === "offer" && papel === "espectador") {
-    novoPeer();
-    pc.ontrack = (e) => { $("video").srcObject = e.streams[0]; status("Assistindo."); };
+  else if (msg.type === "entrou") {
+    novaPessoa(msg.id, msg.nome, false); // ele vai nos chamar
+  }
+  else if (msg.type === "offer") {
+    const p = pares.get(msg.de);
+    if (!p) return;
+    const pc = criarPeer(msg.de, p);
     await pc.setRemoteDescription(msg.sdp);
+    atualizarEnvio(pc);
     await pc.setLocalDescription(await pc.createAnswer());
-    ws.send(JSON.stringify({ type: "answer", sdp: pc.localDescription }));
+    enviar({ type: "answer", para: msg.de, sdp: pc.localDescription });
   }
-  if (msg.type === "answer" && pc) await pc.setRemoteDescription(msg.sdp);
-  if (msg.type === "ice" && pc) try { await pc.addIceCandidate(msg.candidate); } catch {}
-  if (msg.type === "saiu" && papel === "espectador") status("O emissor saiu da sala.", true);
+  else if (msg.type === "answer") {
+    const p = pares.get(msg.de);
+    if (p?.pc) await p.pc.setRemoteDescription(msg.sdp);
+  }
+  else if (msg.type === "ice") {
+    const p = pares.get(msg.de);
+    if (p?.pc) try { await p.pc.addIceCandidate(msg.candidate); } catch {}
+  }
+  else if (msg.type === "compartilhando") {
+    const p = pares.get(msg.de);
+    if (p) { p.compartilhando = msg.valor; marcarVivo(p.tile, msg.valor); }
+  }
+  else if (msg.type === "saiu") {
+    const p = pares.get(msg.id);
+    if (!p) return;
+    p.pc?.close(); p.tile.remove(); pares.delete(msg.id); ajustarGrade();
+  }
+  else if (msg.type === "cheia") {
+    $("erro").textContent = `Essa sala está cheia (máximo de ${msg.max} pessoas).`;
+    sairDaChamada(false);
+  }
 }
 
-function emSala(r) {
-  const sala = $("sala").value.trim();
-  if (!sala) return status("Digite um código de sala.", true), false;
-  papel = r;
-  location.hash = sala;
-  $("btnParar").hidden = false;
-  conectar(sala);
-  return true;
-}
+/* ---------- entrar / sair ---------- */
+$("btnEntrar").onclick = () => {
+  const nome = $("nomeInput").value.trim();
+  const sala = $("salaInput").value.trim();
+  if (!nome || !sala) { $("erro").textContent = "Preencha seu nome e o código da sala."; return; }
+  $("erro").textContent = "";
+  try { localStorage.setItem("nome", nome); } catch {}
+  location.hash = encodeURIComponent(sala);
 
-$("btnCompartilhar").onclick = async () => {
+  const proto = location.protocol === "https:" ? "wss" : "ws";
+  ws = new WebSocket(`${proto}://${location.host}`);
+  ws.onopen = () => {
+    enviar({ type: "entrar", sala, nome });
+    $("salaNome").textContent = sala;
+    $("entrada").hidden = true; $("chamada").hidden = false;
+    $("grade").innerHTML = "";
+    const eu = criarTile("eu", nome, true);
+    pares.set("eu", { tile: eu });
+  };
+  ws.onmessage = (e) => { const m = JSON.parse(e.data); fila = fila.then(() => tratar(m)).catch(console.error); };
+  ws.onclose = () => { if (!$("chamada").hidden) { $("erro").textContent = "Conexão com o servidor encerrada."; sairDaChamada(false); } };
+  ws.onerror = () => { $("erro").textContent = "Não consegui conectar ao servidor."; };
+};
+[$("nomeInput"), $("salaInput")].forEach((i) => i.addEventListener("keydown", (e) => e.key === "Enter" && $("btnEntrar").click()));
+
+function sairDaChamada(limpaErro = true) {
+  pararTela(false);
+  pares.forEach((p) => p.pc?.close());
+  pares.clear();
+  if (ws) { ws.onclose = null; ws.close(); ws = null; }
+  $("chamada").hidden = true; $("entrada").hidden = false;
+  if (limpaErro) $("erro").textContent = "";
+}
+$("btnSair").onclick = () => sairDaChamada();
+
+/* ---------- compartilhar tela ---------- */
+async function iniciarTela() {
   try {
-    stream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
-  } catch { return status("Compartilhamento cancelado.", true); }
-  if (!emSala("emissor")) return;
-  $("video").srcObject = stream;
-  stream.getVideoTracks()[0].onended = parar;
-  status(`Sala "${$("sala").value}" aberta. Envie este link para quem vai assistir: ${location.href}`);
-};
-
-$("btnAssistir").onclick = () => {
-  if (emSala("espectador")) status("Aguardando o emissor…");
-};
-
-function parar() {
-  stream?.getTracks().forEach((t) => t.stop());
-  pc?.close(); ws?.close();
-  $("video").srcObject = null;
-  $("btnParar").hidden = true;
-  status("Encerrado.");
+    telaStream = await navigator.mediaDevices.getDisplayMedia({ video: true, audio: true });
+  } catch { telaStream = null; return; }
+  telaStream.getVideoTracks()[0].onended = () => pararTela(true); // botão "parar de compartilhar" do navegador
+  const eu = pares.get("eu").tile;
+  eu.querySelector("video").srcObject = telaStream;
+  marcarVivo(eu, true);
+  pares.forEach((p, id) => id !== "eu" && p.pc && atualizarEnvio(p.pc));
+  enviar({ type: "compartilhando", valor: true });
+  $("btnTela").textContent = "Parar de compartilhar";
+  $("btnTela").classList.replace("verde", "vermelho");
 }
-$("btnParar").onclick = parar;
+function pararTela(avisar) {
+  if (!telaStream) return;
+  telaStream.getTracks().forEach((t) => t.stop());
+  telaStream = null;
+  const eu = pares.get("eu")?.tile;
+  if (eu) { eu.querySelector("video").srcObject = null; marcarVivo(eu, false); }
+  pares.forEach((p, id) => id !== "eu" && p.pc && atualizarEnvio(p.pc));
+  if (avisar) enviar({ type: "compartilhando", valor: false });
+  $("btnTela").textContent = "Compartilhar tela";
+  $("btnTela").classList.replace("vermelho", "verde");
+}
+$("btnTela").onclick = () => (telaStream ? pararTela(true) : iniciarTela());
+
+$("btnConvite").onclick = async () => {
+  try { await navigator.clipboard.writeText(location.href); $("btnConvite").textContent = "Link copiado!"; }
+  catch { $("btnConvite").textContent = "Copie o endereço da barra do navegador"; }
+  setTimeout(() => ($("btnConvite").textContent = "Copiar link do convite"), 2000);
+};
 </script>
 </body>
 </html>
